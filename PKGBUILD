@@ -4,7 +4,7 @@ pkgver=1.0.0
 pkgrel=1
 pkgdesc="Claude Code integration for Kate text editor"
 arch=('x86_64')
-url="https://github.com/undefinedopcode/kate-code"
+url="https://github.com/molove/kate-code"
 license=('MIT')
 depends=(
     'ktexteditor'
