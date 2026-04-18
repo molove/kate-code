@@ -24,7 +24,7 @@ makedepends=(
 optdepends=(
     'claude-code-acp: Required for Claude Code functionality'
 )
-source=("${pkgname}::git+https://github.com/undefinedopcode/kate-code.git")
+source=("${pkgname}::git+https://github.com/molove/kate-code.git")
 sha256sums=('SKIP')
 
 build() {
