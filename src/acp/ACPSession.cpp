@@ -233,7 +233,6 @@ void ACPSession::createNewSession()
 
     if (!mcpServerPath.isEmpty() && QFileInfo::exists(mcpServerPath)) {
         QJsonObject kateMcp;
-        kateMcp[QStringLiteral("type")] = QStringLiteral("stdio");
         kateMcp[QStringLiteral("name")] = QStringLiteral("kate");
         kateMcp[QStringLiteral("command")] = mcpServerPath;
         kateMcp[QStringLiteral("args")] = QJsonArray();
