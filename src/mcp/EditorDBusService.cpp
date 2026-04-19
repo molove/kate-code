@@ -408,6 +408,16 @@ QString EditorDBusService::setSessionNote(const QString &sessionId, const QStrin
     return QStringLiteral("OK");
 }
 
+QString EditorDBusService::getSessionId()
+{
+    return m_currentSessionId;
+}
+
+void EditorDBusService::updateCurrentSessionId(const QString &sessionId)
+{
+    m_currentSessionId = sessionId;
+}
+
 void EditorDBusService::provideQuestionResponse(const QString &requestId, const QString &responseJson)
 {
     qDebug() << "[EditorDBusService] provideQuestionResponse called, requestId:" << requestId;

@@ -81,6 +81,9 @@ Q_SIGNALS:
     // User question response (MCP AskUserQuestion tool)
     void userQuestionAnswered(const QString &requestId, const QString &responseJson);
 
+    // Emitted when a session becomes active (MCP katecode_get_session_id tool)
+    void sessionIdChanged(const QString &sessionId);
+
 private Q_SLOTS:
     void onConnectClicked();
     void onNewSessionClicked();

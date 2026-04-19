@@ -423,6 +423,7 @@ void ChatWidget::onStatusChanged(ConnectionStatus status)
             m_pendingSessionNote.clear();
             m_lastSessionId = m_session->sessionId();
             m_lastProjectRoot = projectRoot;
+            Q_EMIT sessionIdChanged(m_lastSessionId);
 
             // Show session name in title if one is set
             QList<SessionEntry> sessions = m_sessionStore->listSessions(projectRoot);

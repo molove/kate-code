@@ -424,10 +424,25 @@ QJsonObject MCPServer::handleToolsList(int id, const QJsonObject &params)
     noteAnnotations[QStringLiteral("idempotentHint")] = true;
     setNoteTool[QStringLiteral("annotations")] = noteAnnotations;
 
+    // katecode_get_session_id tool definition
+    QJsonObject getSessionIdTool;
+    getSessionIdTool[QStringLiteral("name")] = QStringLiteral("katecode_get_session_id");
+    getSessionIdTool[QStringLiteral("description")] =
+        QStringLiteral("Returns the ID of the currently active kate-code session. "
+                       "Use this to obtain the session_id required by katecode_set_session_note.");
+    QJsonObject getSessionIdSchema;
+    getSessionIdSchema[QStringLiteral("type")] = QStringLiteral("object");
+    getSessionIdSchema[QStringLiteral("properties")] = QJsonObject{};
+    getSessionIdTool[QStringLiteral("inputSchema")] = getSessionIdSchema;
+    QJsonObject getSessionIdAnnotations;
+    getSessionIdAnnotations[QStringLiteral("readOnlyHint")] = true;
+    getSessionIdAnnotations[QStringLiteral("destructiveHint")] = false;
+    getSessionIdTool[QStringLiteral("annotations")] = getSessionIdAnnotations;
+
     QJsonObject result;
     result[QStringLiteral("tools")] = QJsonArray{
         docsTool, readTool, editTool, writeTool, askUserTool,
-        activeDocTool, openTool, closeTool, saveTool, statusTool, revertTool, setNoteTool
+        activeDocTool, openTool, closeTool, saveTool, statusTool, revertTool, setNoteTool, getSessionIdTool
     };
 
     return makeResponse(id, result);
@@ -462,6 +477,8 @@ QJsonObject MCPServer::handleToolsCall(int id, const QJsonObject &params)
         return makeResponse(id, executeRevert(arguments));
     } else if (toolName == QStringLiteral("katecode_set_session_note")) {
         return makeResponse(id, executeSetSessionNote(arguments));
+    } else if (toolName == QStringLiteral("katecode_get_session_id")) {
+        return makeResponse(id, executeGetSessionId(arguments));
     }
 
     return makeErrorResponse(id, -32602, QStringLiteral("Unknown tool: %1").arg(toolName));
@@ -1134,6 +1151,32 @@ QJsonObject MCPServer::executeAskUserQuestion(const QJsonObject &arguments)
     textContent[QStringLiteral("type")] = QStringLiteral("text");
     textContent[QStringLiteral("text")] = formattedText.trimmed();
 
+    QJsonObject result;
+    result[QStringLiteral("content")] = QJsonArray{textContent};
+    return result;
+}
+
+QJsonObject MCPServer::executeGetSessionId(const QJsonObject &arguments)
+{
+    Q_UNUSED(arguments);
+
+    QDBusInterface iface(QStringLiteral("org.kde.katecode.editor"),
+                         QStringLiteral("/KateCode/Editor"),
+                         QStringLiteral("org.kde.katecode.Editor"),
+                         QDBusConnection::sessionBus());
+    if (!iface.isValid())
+        return makeErrorResult(QStringLiteral("Error: Could not connect to Kate editor DBus service."));
+
+    QDBusReply<QString> reply = iface.call(QStringLiteral("getSessionId"));
+    if (!reply.isValid())
+        return makeErrorResult(QStringLiteral("Error: DBus call failed: %1").arg(reply.error().message()));
+
+    const QString sessionId = reply.value();
+    QJsonObject textContent;
+    textContent[QStringLiteral("type")] = QStringLiteral("text");
+    textContent[QStringLiteral("text")] = sessionId.isEmpty()
+        ? QStringLiteral("No active session")
+        : sessionId;
     QJsonObject result;
     result[QStringLiteral("content")] = QJsonArray{textContent};
     return result;

@@ -25,6 +25,9 @@ public:
     // Called by UI when user responds to a question
     void provideQuestionResponse(const QString &requestId, const QString &responseJson);
 
+    // Called by ChatWidget when the active session ID changes
+    void updateCurrentSessionId(const QString &sessionId);
+
 public Q_SLOTS:
     QStringList listDocuments();
 
@@ -67,6 +70,9 @@ public Q_SLOTS:
     // Returns "OK" on success or "ERROR: ..." on failure.
     QString setSessionNote(const QString &sessionId, const QString &note);
 
+    // Returns the ID of the currently active kate-code session, or empty string if not connected.
+    QString getSessionId();
+
 Q_SIGNALS:
     // Emitted when a question needs to be shown to the user
     void questionRequested(const QString &requestId, const QString &questionsJson);
@@ -78,6 +84,8 @@ Q_SIGNALS:
     void sessionNoteUpdateRequested(const QString &sessionId, const QString &note);
 
 private:
+    QString m_currentSessionId;
+
     // Track pending question requests
     struct PendingQuestion {
         QEventLoop *eventLoop;
