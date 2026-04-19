@@ -158,6 +158,10 @@ void KateCodeView::createToolView()
     connect(m_chatWidget, &ChatWidget::userQuestionAnswered,
             m_plugin->dbusService(), &EditorDBusService::provideQuestionResponse);
 
+    // EditorDBusService -> ChatWidget: update session note
+    connect(m_plugin->dbusService(), &EditorDBusService::sessionNoteUpdateRequested,
+            m_chatWidget, &ChatWidget::setSessionNote);
+
     // Connect debug log output to Kate's Output panel
     connect(m_chatWidget, &ChatWidget::debugLogMessage, this, [this](const QString &message) {
         QVariantMap msg;

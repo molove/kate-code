@@ -2,6 +2,10 @@
 build/
 bin/
 
+# Development tooling
+.clangd
+compile_commands.json
+
 # CMake files
 CMakeCache.txt
 CMakeFiles/

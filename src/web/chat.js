@@ -1321,6 +1321,8 @@ function showPermissionRequest(requestId, toolName, input, options) {
         html += `<div class="permission-option" onclick="respondToPermission(${requestId}, '${escapeHtml(optionId)}')"><span class="permission-option-label">${escapeHtml(label)}</span></div>`;
     });
 
+    html += `<div class="permission-flag-concern" onclick="flagConcernFromPermission(this)" title="Flag a concern — Claude will pause after this step to address it">⚠️ I have a concern</div>`;
+
     html += `
             </div>
         </div>
@@ -1337,6 +1339,14 @@ function showPermissionRequest(requestId, toolName, input, options) {
     container.appendChild(permEl.firstElementChild);
     console.log('Permission request added to DOM');
     scrollToBottom();
+}
+
+// Flag a concern from the permission request UI
+function flagConcernFromPermission(el) {
+    el.classList.toggle('permission-flag-active');
+    if (window.bridge) {
+        window.bridge.flagConcern();
+    }
 }
 
 // Respond to permission request

@@ -35,13 +35,15 @@ public:
     void clearEditSummary();
 
     // Diff color scheme support
-    void updateDiffColors(const QString &removeBackground, const QString &addBackground);
+    void updateDiffColors(const QString &removeBackground, const QString &addBackground,
+                          const QString &removeForeground, const QString &addForeground);
 
 Q_SIGNALS:
     void permissionResponseReady(int requestId, const QString &optionId);
     void jumpToEditRequested(const QString &filePath, int startLine, int endLine);
     void webViewReady();
     void userQuestionAnswered(const QString &requestId, const QJsonObject &answers);
+    void concernFlagged();
 
 private Q_SLOTS:
     void onLoadFinished(bool ok);
@@ -69,9 +71,11 @@ public Q_SLOTS:
     Q_INVOKABLE void logFromJS(const QString &message);
     Q_INVOKABLE void jumpToEdit(const QString &filePath, int startLine, int endLine);
     Q_INVOKABLE void submitQuestionAnswers(const QString &requestId, const QString &answersJson);
+    Q_INVOKABLE void flagConcern();
 
 Q_SIGNALS:
     void permissionResponse(int requestId, const QString &optionId);
     void jumpToEditRequested(const QString &filePath, int startLine, int endLine);
     void questionAnswersSubmitted(const QString &requestId, const QString &answersJson);
+    void concernFlagged();
 };

@@ -34,6 +34,7 @@ ChatWebView::ChatWebView(QWidget *parent)
         QJsonDocument doc = QJsonDocument::fromJson(answersJson.toUtf8());
         Q_EMIT userQuestionAnswered(requestId, doc.object());
     });
+    connect(m_bridge, &WebBridge::concernFlagged, this, &ChatWebView::concernFlagged);
 }
 
 ChatWebView::~ChatWebView()
@@ -98,16 +99,19 @@ void ChatWebView::injectColorScheme()
             qDebug() << "[ChatWebView] No theme JSON, using fallback:" << codeBg;
         }
 
-        inlineCodeBg = isLight ? QStringLiteral("rgba(0, 0, 0, 0.08)")
-                                : QStringLiteral("rgba(0, 0, 0, 0.3)");
+        // Determine if the code background is light or dark (independent of KDE UI theme)
+        bool isLightCodeBg = QColor(codeBg).lightnessF() > 0.5;
+
+        inlineCodeBg = isLightCodeBg ? QStringLiteral("rgba(0, 0, 0, 0.08)")
+                                     : QStringLiteral("rgba(0, 0, 0, 0.3)");
 
         // Theme-aware task purple: darker on light themes, lighter on dark themes for contrast
         QString taskPurple = isLight ? QStringLiteral("#9c27b0") : QStringLiteral("#ce93d8");
         QString taskPurpleBg = isLight ? QStringLiteral("rgba(156, 39, 176, 0.08)")
                                        : QStringLiteral("rgba(206, 147, 216, 0.15)");
 
-        // Terminal text color: dark text on light backgrounds, light text on dark backgrounds
-        QString terminalFg = isLight ? QStringLiteral("#1e1e1e") : QStringLiteral("#e0e0e0");
+        // Terminal text color: based on code background lightness, not KDE UI theme
+        QString terminalFg = isLightCodeBg ? QStringLiteral("#1e1e1e") : QStringLiteral("#e0e0e0");
 
         // Escape the CSS for JavaScript string literal
         QString escapedCSS = kateThemeCSS;
@@ -475,7 +479,8 @@ void ChatWebView::clearEditSummary()
     runJavaScript(QStringLiteral("clearEditSummary();"));
 }
 
-void ChatWebView::updateDiffColors(const QString &removeBackground, const QString &addBackground)
+void ChatWebView::updateDiffColors(const QString &removeBackground, const QString &addBackground,
+                                   const QString &removeForeground, const QString &addForeground)
 {
     if (!m_isLoaded) {
         return;
@@ -484,16 +489,24 @@ void ChatWebView::updateDiffColors(const QString &removeBackground, const QStrin
     QString script = QStringLiteral(
         "document.documentElement.style.setProperty('--diff-remove-bg', '%1');"
         "document.documentElement.style.setProperty('--diff-add-bg', '%2');"
-    ).arg(removeBackground, addBackground);
+        "document.documentElement.style.setProperty('--diff-remove-fg', '%3');"
+        "document.documentElement.style.setProperty('--diff-add-fg', '%4');"
+    ).arg(removeBackground, addBackground, removeForeground, addForeground);
 
     runJavaScript(script);
-    qDebug() << "[ChatWebView] Updated diff colors: remove=" << removeBackground << "add=" << addBackground;
+    qDebug() << "[ChatWebView] Updated diff colors: remove=" << removeBackground << "/" << removeForeground
+             << "add=" << addBackground << "/" << addForeground;
 }
 
 // WebBridge implementation
 void WebBridge::respondToPermission(int requestId, const QString &optionId)
 {
     Q_EMIT permissionResponse(requestId, optionId);
+}
+
+void WebBridge::flagConcern()
+{
+    Q_EMIT concernFlagged();
 }
 
 void WebBridge::logFromJS(const QString &message)

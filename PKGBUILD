@@ -15,6 +15,7 @@ depends=(
     'kwallet'
     'kpty'
     'qt6-webengine'
+    'ttf-material-symbols-variable'
 )
 makedepends=(
     'cmake'

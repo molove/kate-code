@@ -268,6 +268,27 @@ void ACPSession::loadSession(const QString &sessionId)
     params[QStringLiteral("sessionId")] = sessionId;
     params[QStringLiteral("cwd")] = m_workingDir;
 
+    // Include mcpServers so Kate tools are available in the resumed session
+    QJsonArray mcpServers;
+    QString mcpServerPath;
+#ifdef KATE_MCP_SERVER_PATH
+    mcpServerPath = QStringLiteral(KATE_MCP_SERVER_PATH);
+#endif
+    if (mcpServerPath.isEmpty() || !QFileInfo::exists(mcpServerPath)) {
+        const QString found = QStandardPaths::findExecutable(QStringLiteral("kate-mcp-server"));
+        if (!found.isEmpty())
+            mcpServerPath = found;
+    }
+    if (!mcpServerPath.isEmpty() && QFileInfo::exists(mcpServerPath)) {
+        QJsonObject kateMcp;
+        kateMcp[QStringLiteral("name")] = QStringLiteral("kate");
+        kateMcp[QStringLiteral("command")] = mcpServerPath;
+        kateMcp[QStringLiteral("args")] = QJsonArray();
+        kateMcp[QStringLiteral("env")] = QJsonArray();
+        mcpServers.append(kateMcp);
+    }
+    params[QStringLiteral("mcpServers")] = mcpServers;
+
     m_sessionLoadRequestId = m_service->sendRequest(QStringLiteral("session/load"), params);
     qDebug() << "[ACPSession] Sent session/load request, id:" << m_sessionLoadRequestId;
 }

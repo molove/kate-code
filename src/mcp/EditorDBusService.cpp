@@ -114,6 +114,15 @@ QString EditorDBusService::editDocument(const QString &filePath, const QString &
         doc = view->document();
     }
 
+    // Handle empty oldText: only allowed if the document is empty
+    if (oldText.isEmpty()) {
+        if (!doc->text().isEmpty()) {
+            return QStringLiteral("ERROR: old_string is empty but document is not — use a non-empty old_string to make a targeted edit");
+        }
+        bool success = doc->setText(newText);
+        return success ? QStringLiteral("OK") : QStringLiteral("ERROR: Failed to write to document");
+    }
+
     // Find and replace the text
     QString content = doc->text();
     int pos = content.indexOf(oldText);
@@ -263,6 +272,140 @@ QString EditorDBusService::askUserQuestion(const QString &questionsJson)
     }
 
     return response;
+}
+
+QString EditorDBusService::getActiveDocument()
+{
+    KTextEditor::Application *app = KTextEditor::Editor::instance()->application();
+    if (!app)
+        return QStringLiteral("ERROR: KTextEditor application not available");
+    KTextEditor::MainWindow *mainWindow = app->activeMainWindow();
+    if (!mainWindow)
+        return QStringLiteral("ERROR: No active main window");
+    KTextEditor::View *view = mainWindow->activeView();
+    if (!view)
+        return QStringLiteral("ERROR: No active view");
+    KTextEditor::Document *doc = view->document();
+
+    QString path = doc->url().toLocalFile();
+    KTextEditor::Cursor cursor = view->cursorPosition();
+    QString selText = view->selectionText();
+
+    QJsonObject result;
+    result[QStringLiteral("path")] = path.isEmpty()
+        ? QStringLiteral("untitled:") + doc->documentName()
+        : path;
+    result[QStringLiteral("line")] = cursor.line() + 1;
+    result[QStringLiteral("column")] = cursor.column() + 1;
+    result[QStringLiteral("isModified")] = doc->isModified();
+    if (!selText.isEmpty())
+        result[QStringLiteral("selection")] = selText;
+
+    return QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Compact));
+}
+
+QString EditorDBusService::openDocument(const QString &filePath, int line, int column)
+{
+    KTextEditor::Application *app = KTextEditor::Editor::instance()->application();
+    if (!app)
+        return QStringLiteral("ERROR: KTextEditor application not available");
+    KTextEditor::MainWindow *mainWindow = app->activeMainWindow();
+    if (!mainWindow)
+        return QStringLiteral("ERROR: No active main window");
+
+    QUrl url = QUrl::fromLocalFile(filePath);
+    KTextEditor::View *view = mainWindow->openUrl(url);
+    if (!view)
+        return QStringLiteral("ERROR: Could not open file: %1").arg(filePath);
+
+    if (line > 0) {
+        int col = column > 0 ? column - 1 : 0;
+        view->setCursorPosition(KTextEditor::Cursor(line - 1, col));
+    }
+    return QStringLiteral("OK");
+}
+
+QString EditorDBusService::closeDocument(const QString &filePath)
+{
+    KTextEditor::Application *app = KTextEditor::Editor::instance()->application();
+    if (!app)
+        return QStringLiteral("ERROR: KTextEditor application not available");
+
+    QUrl url = QUrl::fromLocalFile(filePath);
+    KTextEditor::Document *doc = app->findUrl(url);
+    if (!doc)
+        return QStringLiteral("ERROR: Document not open: %1").arg(filePath);
+    if (!app->closeDocument(doc))
+        return QStringLiteral("ERROR: Failed to close document (user may have cancelled)");
+    return QStringLiteral("OK");
+}
+
+QString EditorDBusService::saveDocument(const QString &filePath)
+{
+    KTextEditor::Application *app = KTextEditor::Editor::instance()->application();
+    if (!app)
+        return QStringLiteral("ERROR: KTextEditor application not available");
+
+    if (filePath.isEmpty()) {
+        QStringList failed;
+        for (KTextEditor::Document *doc : app->documents()) {
+            if (doc->isModified() && !doc->save())
+                failed.append(doc->url().toLocalFile());
+        }
+        if (!failed.isEmpty())
+            return QStringLiteral("ERROR: Failed to save: %1").arg(failed.join(QStringLiteral(", ")));
+        return QStringLiteral("OK");
+    }
+
+    QUrl url = QUrl::fromLocalFile(filePath);
+    KTextEditor::Document *doc = app->findUrl(url);
+    if (!doc)
+        return QStringLiteral("ERROR: Document not open: %1").arg(filePath);
+    if (!doc->save())
+        return QStringLiteral("ERROR: Failed to save document");
+    return QStringLiteral("OK");
+}
+
+QString EditorDBusService::getDocumentStatus(const QString &filePath)
+{
+    KTextEditor::Application *app = KTextEditor::Editor::instance()->application();
+    if (!app)
+        return QStringLiteral("ERROR: KTextEditor application not available");
+
+    QUrl url = QUrl::fromLocalFile(filePath);
+    KTextEditor::Document *doc = app->findUrl(url);
+    if (!doc)
+        return QStringLiteral("ERROR: Document not open: %1").arg(filePath);
+
+    QJsonObject result;
+    result[QStringLiteral("path")] = filePath;
+    result[QStringLiteral("isModified")] = doc->isModified();
+    result[QStringLiteral("isReadOnly")] = !doc->isReadWrite();
+    return QString::fromUtf8(QJsonDocument(result).toJson(QJsonDocument::Compact));
+}
+
+QString EditorDBusService::revertDocument(const QString &filePath)
+{
+    KTextEditor::Application *app = KTextEditor::Editor::instance()->application();
+    if (!app)
+        return QStringLiteral("ERROR: KTextEditor application not available");
+
+    QUrl url = QUrl::fromLocalFile(filePath);
+    KTextEditor::Document *doc = app->findUrl(url);
+    if (!doc)
+        return QStringLiteral("ERROR: Document not open: %1").arg(filePath);
+    if (!doc->documentReload())
+        return QStringLiteral("ERROR: Failed to revert document");
+    return QStringLiteral("OK");
+}
+
+QString EditorDBusService::setSessionNote(const QString &sessionId, const QString &note)
+{
+    if (sessionId.isEmpty()) {
+        return QStringLiteral("ERROR: sessionId is required");
+    }
+    Q_EMIT sessionNoteUpdateRequested(sessionId, note);
+    return QStringLiteral("OK");
 }
 
 void EditorDBusService::provideQuestionResponse(const QString &requestId, const QString &responseJson)

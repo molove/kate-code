@@ -16,10 +16,10 @@ class SessionStore;
 class SummaryStore;
 class SummaryGenerator;
 class SettingsStore;
-class QComboBox;
 class QPushButton;
 class QToolButton;
 class QLabel;
+class QMenu;
 
 class ChatWidget : public QWidget
 {
@@ -61,6 +61,8 @@ public Q_SLOTS:
     void showUserQuestion(const QString &requestId, const QString &questionsJson);
     // Remove user question UI (on timeout or cancel)
     void removeUserQuestion(const QString &requestId);
+    // Update session note in the session store (MCP katecode_set_session_note tool)
+    void setSessionNote(const QString &sessionId, const QString &note);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -81,8 +83,9 @@ Q_SIGNALS:
 
 private Q_SLOTS:
     void onConnectClicked();
-    void onResumeSessionClicked();
     void onNewSessionClicked();
+    void onFlagConcernClicked();
+    void onConcernFlaggedFromWeb();
     void onStopClicked();
     void onMessageSubmitted(const QString &message);
     void onPermissionModeChanged(const QString &mode);
@@ -120,7 +123,6 @@ private:
     void applyDiffColors();
     void applyACPBackend();
     void populateProviderCombo();
-    void onProviderComboChanged(int index);
     void updateTerminalSize();
     void resetWebView();
     void connectWebViewSignals();
@@ -151,10 +153,10 @@ private:
     // UI components
     ChatWebView *m_chatWebView;
     ChatInputWidget *m_inputWidget;
-    QComboBox *m_providerCombo;
+    QToolButton *m_providerButton;
     QToolButton *m_connectButton;
-    QToolButton *m_resumeSessionButton;
     QToolButton *m_newSessionButton;
+    QToolButton *m_flagConcernButton;
     QLabel *m_titleLabel;
     QLabel *m_statusIndicator;
     QWidget *m_contextChipsContainer;
@@ -163,6 +165,8 @@ private:
     SessionStore *m_sessionStore;
     PendingAction m_pendingAction;
     QString m_pendingSessionId;
+    QString m_pendingSessionName;
+    QString m_pendingSessionNote;
 
     // Summary generation
     SettingsStore *m_settingsStore;
@@ -176,6 +180,9 @@ private:
 
     // Track whether user has sent a message (for summary generation decision)
     bool m_userSentMessage = false;
+
+    // Concern flag — set by toolbar button or permission dialog; triggers pause message on next message finish
+    bool m_concernFlagged = false;
 
     // Track pending summary generation waiting for API key
     bool m_pendingSummaryAfterKeyLoad = false;
