@@ -1,6 +1,6 @@
 # Maintainer: Your Name <your.email@example.com>
 pkgname=kate-code
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc="Claude Code integration for Kate text editor"
 arch=('x86_64')
