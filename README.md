@@ -58,13 +58,13 @@ See what Claude is doing with inline tool call displays:
 
 ### Runtime Dependencies
 - `claude-agent-acp` binary installed and available in PATH
-  - Install from: https://github.com/zed-industries/claude-code-acp
+  - Install from: https://github.com/agentclientprotocol/claude-agent-acp
 
 ## Installation
 
 ### Install claude-agent-acp
 
-Follow the instructions at https://github.com/zed-industries/claude-code-acp to install the ACP binary (the installed binary is named `claude-agent-acp`).
+Follow the instructions at https://github.com/agentclientprotocol/claude-agent-acp to install the ACP binary (the installed binary is named `claude-agent-acp`).
 
 Verify installation:
 ```bash
@@ -321,5 +321,5 @@ Contributions welcome! Please:
 ## Acknowledgments
 
 - Built with Qt 6 and KDE Frameworks 6
-- Integrates with [claude-code-acp](https://github.com/zed-industries/claude-code-acp) by Zed Industries
+- Integrates with [claude-agent-acp](https://github.com/agentclientprotocol/claude-agent-acp) by Zed Industries
 - Markdown rendering by [marked.js](https://marked.js.org/)
