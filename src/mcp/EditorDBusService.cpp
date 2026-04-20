@@ -5,18 +5,22 @@
 
 #include "EditorDBusService.h"
 
+#include <kde_terminal_interface.h>
 #include <KTextEditor/Application>
 #include <KTextEditor/Document>
 #include <KTextEditor/Editor>
 #include <KTextEditor/MainWindow>
 #include <KTextEditor/View>
+#include <QClipboard>
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusError>
 #include <QDebug>
 #include <QFile>
+#include <QGuiApplication>
 #include <QTimer>
 #include <QUrl>
+#include <QWidget>
 
 EditorDBusService::EditorDBusService(QObject *parent)
     : QObject(parent)
@@ -417,6 +421,50 @@ QString EditorDBusService::getSessionId()
 void EditorDBusService::updateCurrentSessionId(const QString &sessionId)
 {
     m_currentSessionId = sessionId;
+}
+
+QString EditorDBusService::getClipboardText()
+{
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    if (!clipboard)
+        return QStringLiteral("ERROR: Clipboard not available");
+    return clipboard->text();
+}
+
+QString EditorDBusService::pasteToTerminal(const QString &text)
+{
+    KTextEditor::Application *app = KTextEditor::Editor::instance()->application();
+    if (!app)
+        return QStringLiteral("ERROR: KTextEditor application not available");
+
+    KTextEditor::MainWindow *mainWindow = app->activeMainWindow();
+    if (!mainWindow)
+        return QStringLiteral("ERROR: No active main window");
+
+    // Kate's terminal plugin registers itself as "katekonsoleplugin"
+    QObject *terminalView = mainWindow->pluginView(QStringLiteral("katekonsoleplugin"));
+    if (!terminalView)
+        return QStringLiteral("ERROR: Kate terminal plugin not available or not enabled");
+
+    // The KonsolePart may not be a direct Qt-child of the plugin view — it is often
+    // parented to a container widget deeper in the hierarchy.  Search the entire main
+    // window widget tree so we find it wherever it lives.
+    TerminalInterface *terminal = nullptr;
+    QWidget *win = mainWindow->window();
+    if (win) {
+        const auto allObjs = win->findChildren<QObject *>(QString(), Qt::FindChildrenRecursively);
+        for (QObject *obj : allObjs) {
+            terminal = qobject_cast<TerminalInterface *>(obj);
+            if (terminal)
+                break;
+        }
+    }
+
+    if (!terminal)
+        return QStringLiteral("ERROR: Could not find TerminalInterface in terminal plugin");
+
+    terminal->sendInput(text);
+    return QStringLiteral("OK");
 }
 
 void EditorDBusService::provideQuestionResponse(const QString &requestId, const QString &responseJson)

@@ -439,10 +439,52 @@ QJsonObject MCPServer::handleToolsList(int id, const QJsonObject &params)
     getSessionIdAnnotations[QStringLiteral("destructiveHint")] = false;
     getSessionIdTool[QStringLiteral("annotations")] = getSessionIdAnnotations;
 
+    // katecode_read_clipboard tool definition
+    QJsonObject readClipboardTool;
+    readClipboardTool[QStringLiteral("name")] = QStringLiteral("katecode_read_clipboard");
+    readClipboardTool[QStringLiteral("description")] =
+        QStringLiteral("Returns the current clipboard text content. "
+                       "Useful for reading text the user has copied or selected (e.g. from the terminal).");
+    QJsonObject readClipboardSchema;
+    readClipboardSchema[QStringLiteral("type")] = QStringLiteral("object");
+    readClipboardSchema[QStringLiteral("properties")] = QJsonObject();
+    readClipboardTool[QStringLiteral("inputSchema")] = readClipboardSchema;
+    QJsonObject readClipboardAnnotations;
+    readClipboardAnnotations[QStringLiteral("readOnlyHint")] = true;
+    readClipboardAnnotations[QStringLiteral("destructiveHint")] = false;
+    readClipboardTool[QStringLiteral("annotations")] = readClipboardAnnotations;
+
+    // katecode_paste_to_terminal tool definition
+    QJsonObject pasteTerminalTool;
+    pasteTerminalTool[QStringLiteral("name")] = QStringLiteral("katecode_paste_to_terminal");
+    pasteTerminalTool[QStringLiteral("description")] =
+        QStringLiteral("Sends text to Kate's embedded terminal without executing it (no Enter key). "
+                       "The user can review the text and press Enter themselves. "
+                       "Requires Kate's terminal plugin to be enabled.");
+
+    QJsonObject pasteTextProp;
+    pasteTextProp[QStringLiteral("type")] = QStringLiteral("string");
+    pasteTextProp[QStringLiteral("description")] = QStringLiteral("The text to paste into the terminal");
+
+    QJsonObject pasteTerminalProps;
+    pasteTerminalProps[QStringLiteral("text")] = pasteTextProp;
+
+    QJsonObject pasteTerminalSchema;
+    pasteTerminalSchema[QStringLiteral("type")] = QStringLiteral("object");
+    pasteTerminalSchema[QStringLiteral("properties")] = pasteTerminalProps;
+    pasteTerminalSchema[QStringLiteral("required")] = QJsonArray{QStringLiteral("text")};
+    pasteTerminalTool[QStringLiteral("inputSchema")] = pasteTerminalSchema;
+
+    QJsonObject pasteTerminalAnnotations;
+    pasteTerminalAnnotations[QStringLiteral("readOnlyHint")] = false;
+    pasteTerminalAnnotations[QStringLiteral("destructiveHint")] = false;
+    pasteTerminalTool[QStringLiteral("annotations")] = pasteTerminalAnnotations;
+
     QJsonObject result;
     result[QStringLiteral("tools")] = QJsonArray{
         docsTool, readTool, editTool, writeTool, askUserTool,
-        activeDocTool, openTool, closeTool, saveTool, statusTool, revertTool, setNoteTool, getSessionIdTool
+        activeDocTool, openTool, closeTool, saveTool, statusTool, revertTool,
+        setNoteTool, getSessionIdTool, readClipboardTool, pasteTerminalTool
     };
 
     return makeResponse(id, result);
@@ -479,6 +521,10 @@ QJsonObject MCPServer::handleToolsCall(int id, const QJsonObject &params)
         return makeResponse(id, executeSetSessionNote(arguments));
     } else if (toolName == QStringLiteral("katecode_get_session_id")) {
         return makeResponse(id, executeGetSessionId(arguments));
+    } else if (toolName == QStringLiteral("katecode_read_clipboard")) {
+        return makeResponse(id, executeReadClipboard(arguments));
+    } else if (toolName == QStringLiteral("katecode_paste_to_terminal")) {
+        return makeResponse(id, executePasteToTerminal(arguments));
     }
 
     return makeErrorResponse(id, -32602, QStringLiteral("Unknown tool: %1").arg(toolName));
@@ -1179,5 +1225,60 @@ QJsonObject MCPServer::executeGetSessionId(const QJsonObject &arguments)
         : sessionId;
     QJsonObject result;
     result[QStringLiteral("content")] = QJsonArray{textContent};
+    return result;
+}
+
+QJsonObject MCPServer::executeReadClipboard(const QJsonObject &arguments)
+{
+    Q_UNUSED(arguments);
+
+    QDBusInterface iface(QStringLiteral("org.kde.katecode.editor"),
+                         QStringLiteral("/KateCode/Editor"),
+                         QStringLiteral("org.kde.katecode.Editor"),
+                         QDBusConnection::sessionBus());
+    if (!iface.isValid())
+        return makeErrorResult(QStringLiteral("Error: Could not connect to Kate editor DBus service."));
+
+    QDBusReply<QString> reply = iface.call(QStringLiteral("getClipboardText"));
+    if (!reply.isValid())
+        return makeErrorResult(QStringLiteral("Error: DBus call failed: %1").arg(reply.error().message()));
+
+    const QString text = reply.value();
+    QJsonObject textContent;
+    textContent[QStringLiteral("type")] = QStringLiteral("text");
+    textContent[QStringLiteral("text")] = text.isEmpty()
+        ? QStringLiteral("(clipboard is empty)")
+        : text;
+    QJsonObject result;
+    result[QStringLiteral("content")] = QJsonArray{textContent};
+    return result;
+}
+
+QJsonObject MCPServer::executePasteToTerminal(const QJsonObject &arguments)
+{
+    const QString text = arguments[QStringLiteral("text")].toString();
+    if (text.isEmpty())
+        return makeErrorResult(QStringLiteral("Error: text is required"));
+
+    QDBusInterface iface(QStringLiteral("org.kde.katecode.editor"),
+                         QStringLiteral("/KateCode/Editor"),
+                         QStringLiteral("org.kde.katecode.Editor"),
+                         QDBusConnection::sessionBus());
+    if (!iface.isValid())
+        return makeErrorResult(QStringLiteral("Error: Could not connect to Kate editor DBus service."));
+
+    QDBusReply<QString> reply = iface.call(QStringLiteral("pasteToTerminal"), text);
+    if (!reply.isValid())
+        return makeErrorResult(QStringLiteral("Error: DBus call failed: %1").arg(reply.error().message()));
+
+    const QString response = reply.value();
+    bool isError = response.startsWith(QStringLiteral("ERROR:"));
+    QJsonObject textContent;
+    textContent[QStringLiteral("type")] = QStringLiteral("text");
+    textContent[QStringLiteral("text")] = response;
+    QJsonObject result;
+    result[QStringLiteral("content")] = QJsonArray{textContent};
+    if (isError)
+        result[QStringLiteral("isError")] = true;
     return result;
 }

@@ -21,6 +21,7 @@ find_package(KF6 ${REQUIRED_KF_VERSION} REQUIRED COMPONENTS
     SyntaxHighlighting
     Wallet
     Pty
+    Parts
 )
 
 find_package(Qt6 REQUIRED COMPONENTS

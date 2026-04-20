@@ -73,6 +73,13 @@ public Q_SLOTS:
     // Returns the ID of the currently active kate-code session, or empty string if not connected.
     QString getSessionId();
 
+    // Returns the current clipboard text content.
+    QString getClipboardText();
+
+    // Sends text to Kate's embedded terminal without executing it (no Enter).
+    // Returns "OK" on success or "ERROR: ..." on failure.
+    QString pasteToTerminal(const QString &text);
+
 Q_SIGNALS:
     // Emitted when editDocument succeeds, with the edit parameters
     void editApplied(const QString &filePath, const QString &oldText, const QString &newText);
