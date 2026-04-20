@@ -63,6 +63,8 @@ public Q_SLOTS:
     void removeUserQuestion(const QString &requestId);
     // Update session note in the session store (MCP katecode_set_session_note tool)
     void setSessionNote(const QString &sessionId, const QString &note);
+    // Capture edit data from EditorDBusService for diff display
+    void onEditApplied(const QString &filePath, const QString &oldText, const QString &newText);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -189,4 +191,8 @@ private:
 
     // Track pending summary generation waiting for API key
     bool m_pendingSummaryAfterKeyLoad = false;
+
+    // Recent edit data captured from EditorDBusService, consumed when tool_call_update arrives
+    struct RecentEditData { QString filePath, oldText, newText; };
+    QList<RecentEditData> m_recentEdits;
 };

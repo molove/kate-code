@@ -134,6 +134,7 @@ ChatWidget::ChatWidget(QWidget *parent)
     connect(m_session, &ACPSession::messageFinished, this, &ChatWidget::onMessageFinished);
     connect(m_session, &ACPSession::toolCallAdded, this, &ChatWidget::onToolCallAdded);
     connect(m_session, &ACPSession::toolCallUpdated, this, &ChatWidget::onToolCallUpdated);
+    connect(m_session, &ACPSession::fsEditApplied, this, &ChatWidget::onEditApplied);
     connect(m_session, &ACPSession::todosUpdated, this, &ChatWidget::onTodosUpdated);
     connect(m_session, &ACPSession::permissionRequested, this, &ChatWidget::onPermissionRequested);
     connect(m_session, &ACPSession::modesAvailable, this, &ChatWidget::onModesAvailable);
@@ -519,9 +520,24 @@ void ChatWidget::onToolCallAdded(const QString &messageId, const ToolCall &toolC
     }
 }
 
+void ChatWidget::onEditApplied(const QString &filePath, const QString &oldText, const QString &newText)
+{
+    m_recentEdits.append({filePath, oldText, newText});
+}
+
 void ChatWidget::onToolCallUpdated(const QString &messageId, const QString &toolCallId, const QString &status, const QString &result, const QString &filePath, const QString &toolName)
 {
     Q_UNUSED(messageId);
+
+    // If this is an edit tool completion and we have captured D-Bus edit data, update the diff display
+    bool isEditTool = toolName == QStringLiteral("Edit")
+                   || toolName.endsWith(QStringLiteral("_katecode_edit"))
+                   || toolName == QStringLiteral("mcp__acp__Edit");
+    if (isEditTool && !m_recentEdits.isEmpty()) {
+        RecentEditData edit = m_recentEdits.takeFirst();
+        m_chatWebView->setToolCallDiff(messageId, toolCallId, edit.filePath, edit.oldText, edit.newText);
+    }
+
     m_chatWebView->updateToolCall(messageId, toolCallId, status, result, filePath, toolName);
 
     // Clear highlights when tool call completes or fails
